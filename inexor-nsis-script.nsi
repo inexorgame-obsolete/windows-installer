@@ -78,6 +78,7 @@ RequestExecutionLevel user
 
   SetFont /LANG=${LANG_ENGLISH} "Verdana" 10
   BrandingText " "
+  SpaceTexts none
 
   !define MUI_HEADERIMAGE
   !define MUI_HEADERIMAGE_BITMAP "InexorInstaller_150x57.bmp" # optional
@@ -93,15 +94,17 @@ RequestExecutionLevel user
 #--------------------------------
 # Pages
 
+  # Create a page for selecting the path to an existant installation of exename.
+  # ID is used to make each macro unique
   !macro CONDITIONAL_ENV_VAR_PAGE EXENAME PATHGUESS ID
 
     Var /GLOBAL show_env_page_${ID}
     Var skip_setting_env_${ID}
     Var path_to_${ID}
 
-  # callback for showing the gui
+    # callback for showing the gui
     Function manual_page_${ID}
-      ${If} $show_env_page_${ID} == "T"
+      ${If} $show_env_page_${ID} != "True"
         Abort
       ${EndIf}
 
@@ -110,7 +113,7 @@ RequestExecutionLevel user
       Call fnc_Detect_filepath_Show
     FunctionEnd
 
-  # Callback for setting the envvar after being about to leave the gui
+    # Callback for setting the envvar after being about to leave the gui
     Function manual_page_leave_${ID}
       ${NSD_GetState} $hCtl_Detect_filepath_CheckBox1 $skip_setting_env_${ID}
       ${NSD_GetText} $hCtl_Detect_filepath_DirRequest1_Txt $path_to_${ID}
@@ -134,7 +137,54 @@ RequestExecutionLevel user
   !insertmacro MUI_PAGE_COMPONENTS
   !insertmacro MUI_PAGE_INSTFILES
   !insertmacro CONDITIONAL_ENV_VAR_PAGE "node.exe" "$PROGRAMFILES64\nodejs" node
+  !insertmacro CONDITIONAL_ENV_VAR_PAGE "python.exe" "C:\Python27\" python
   !insertmacro MUI_PAGE_FINISH
+
+# Get required tools macro helper
+
+  # Insert in your get_python/get_nodejs/get_xy functions after setting
+  # has_<ID>
+  # has_<ID>_but_too_old
+  # <ID>_version
+  # <ID>_required_version needs to be defined
+  !macro CHECK_AND_DOWNLOAD EXENAME DOWNLOAD_LINK ID
+    ${If} $has_${ID} != "False"
+      Return # return from the function, not the macro
+    ${EndIf}
+
+      ${If} $has_${ID}_but_too_old == "True"
+          MessageBox MB_OKCANCEL "Your current ${EXENAME}-version is wrong for Inexor: $\r$\n\
+                          $${ID}_version (required version: ${${ID}_required_version})$\r$\n\
+                          The ${EXENAME} installer will be downloaded to do the upgrade.$\r$\n\
+                          $\r$\n\
+                          $\r$\n\
+                          $\r$\n\
+                          (press 'Cancel' to specify the path to an existent ${EXENAME} installation lateron)" IDOK install_${ID} IDCANCEL select_path_${ID}
+      ${Else}
+          MessageBox MB_OKCANCEL "You do not seem to have ${EXENAME} installed.$\r$\n\
+                          The ${EXENAME} installer will be downloaded to install it.\
+                          $\r$\n\
+                          $\r$\n\
+                          $\r$\n\
+                          (press 'Cancel' to specify the path to an existent ${EXENAME} installation lateron)" IDOK install_${ID} IDCANCEL select_path_${ID}
+      ${EndIf}
+
+      install_${ID}:
+          inetc::get /caption "${EXENAME} download" /BANNER "Downloading ${EXENAME} installer from $\n${DOWNLOAD_LINK}" ${DOWNLOAD_LINK} "$TEMP\${ID}_latest.msi" /end
+          Pop $1 # pop return value (aka exit code) from stack, "OK" means OK
+          ${If} $1 != "OK"
+            MessageBox MB_OK "Sorry, there was an error downloading ${EXENAME}$\n\
+                              Aborting the installer,$\n\
+                              please let us know about the circumstances of this error."
+            Quit
+          ${EndIf}
+          ExecWait '"msiexec" /i "$TEMP\${ID}_latest.msi"  /passive'
+          BringToFront # Come back into focus after node installer finished
+          Return
+      select_path_${ID}:
+        StrCpy $show_env_page_${ID} "True"
+        Return
+  !macroend
 
 #--------------------------------
 # Get required tools for a gamer setup
@@ -161,7 +211,6 @@ RequestExecutionLevel user
       StrCpy $has_node "False" # Strcpy is misused for everything in nsis it seems.
     ${Else}
       # check version is high enough
-
       ${CharStrip} "v" $1 $node_version                # "v6.9.1\r\n"
       ${StrStrip} "$\r$\n" $node_version $node_version # "6.9.1\r\n"
       ${VersionCompare} $node_version ${node_required_version} $tmp_value
@@ -172,117 +221,53 @@ RequestExecutionLevel user
       ${EndIf}
     ${EndIf}
 
-    ${If} $has_node != "False"
-      Return      
-    ${EndIf}
-
-      ${If} $has_node_but_too_old == "True"
-          MessageBox MB_OKCANCEL "Your current node.js-version is too old: $\r$\n\
-                          $node_version (required version: ${node_required_version})$\r$\n\
-                          The node.js installer will be downloaded to do the upgrade.$\r$\n\
-                          $\r$\n\
-                          $\r$\n\
-                          $\r$\n\
-                          (press 'Cancel' to specify the path to an already installed node lateron)" IDOK install_node IDCANCEL select_path_node
-      ${Else}
-          MessageBox MB_OKCANCEL "You do not seem to have node.js installed.$\r$\n\
-                          The node.js installer will be downloaded to do the upgrade." IDOK install_node IDCANCEL select_path_node
-      ${EndIf}
-
-      install_node:
-          inetc::get /caption "node.js download" /BANNER "Downloading node.js installer from $\n${node_download_64}" ${node_download_64} "$TEMP\node_latest.msi" /end
-          Pop $1 # pop return value (aka exit code) from stack, "OK" means OK
-          ${If} $1 != "OK"
-            MessageBox MB_OK "Sorry, there was an error downloading node.js$\n\
-                              Aborting the installer,$\n\
-                              please let us know about the circumstances of this error."
-            Quit
-          ${EndIf}
-          ExecWait '"msiexec" /i "$TEMP\node_latest.msi"  /passive'
-          BringToFront # Come back into focus after node installer finished
-          ExecWait 'npm install npm@latest -g'
-          Return
-      select_path_node:
-        StrCpy $show_env_page_node "True"
-        Return
+    !insertmacro CHECK_AND_DOWNLOAD node.js ${node_download_64} node
   FunctionEnd
   
 #--------------------------------
 # Get required tools for a devlopment setup
 
   # -----------------
-  # required: python, cmake, git
-  # python: https://www.python.org/ftp/python/2.7.13/python-2.7.13.amd64.msi
+  # required: python, cmake, git, visual studio
   # cmake: build_require?
   # if cmake <= 3.1 deinstall first! Installer tool has changed. Uninstall CMake 3.4 or lower first!
   # https://cmake.org/files/v3.9/cmake-3.9.1-win64-x64.msi
   # git: https://github.com/git-for-windows/git/releases/download/v2.14.1.windows.1/Git-2.14.1-64-bit.exe
-  # GitHub Dekstop Beta: https://central.github.com/deployments/desktop/desktop/latest/win32?format=msi
-/*  !define node_required_version "6.9.1"
-  !define node_download_64 "https://nodejs.org/dist/v6.11.2/node-v6.11.2-x64.msi"
+  # https://git-scm.com/download/gui/windows
 
-  Var has_node
-  Var has_node_but_too_old
-  Var tmp_value # I prefer this over registers.
-  Var node_version
-*/
+  !define python_required_version "2.7.x"
+  !define python_download_64 "https://www.python.org/ftp/python/2.7.13/python-2.7.13.amd64.msi"
 
-  Function get_devsetup_tools
-/*
+  Var has_python
+  Var has_python_but_too_old
+  Var python_version
 
-    nsExec::ExectoStack 'node -v'
-    pop $0 # pop return value from stack into register $0
-    pop $1 # pop outpout of the command: e.g. "v6.9.1\r\n" -> notice the useless chars
-    StrCpy $tmp_value "node_$0" # $0 is empty if node -v was not able to execute
+  Function get_python
 
-    ${If} $tmp_value == "node_"
-      StrCpy $has_node "False" # Strcpy is misused for everything in nsis it seems.
+   # ---------- python
+    nsExec::ExectoStack 'python --version'
+    pop $R0 # pop return value from stack into register $R0
+    pop $R1 # pop outpout of the command: e.g. "Python 2.7.1\r\n" -> notice the useless chars
+    StrCpy $1 "python_$R0" # $R0 is empty if node -v was not able to execute
+
+    ${If} $1 == "python_"
+      StrCpy $has_python "False"
+      StrCpy $has_python_but_too_old "False"
     ${Else}
       # check version is high enough
 
-      ${CharStrip} "v" $1 $node_version                # "v6.9.1\r\n"
-      ${StrStrip} "$\r$\n" $node_version $node_version # "6.9.1\r\n"
-      ${VersionCompare} $node_version ${node_required_version} $tmp_value
-
-      ${If} $tmp_value == 2
-        StrCpy $has_node "False"
-        StrCpy $has_node_but_too_old "True"
+      ${StrStrip} "$\r$\n" $R1 $python_version
+      ${StrStrip} "Python " $python_version $python_version
+      # is it python 2.x ?
+      ${VersionCompare} $python_version "3.0.0" $2
+      ${If} $2 == 1 # newer than 3.0
+        MessageBox MB_OK "WARNING: you have python 3.x in your PATH.$\n\
+                         If anything goes wrong with the build, try DOWNGRADING TO python 2.7.x!"
       ${EndIf}
     ${EndIf}
 
-    ${If} $has_node != "False"
-      Return      
-    ${EndIf}
-
-      ${If} $has_node_but_too_old == "True"
-          MessageBox MB_OKCANCEL "Your current node.js-version is too old: $\r$\n\
-                          $node_version (required version: ${node_required_version})$\r$\n\
-                          The node.js installer will be downloaded to do the upgrade.$\r$\n\
-                          $\r$\n\
-                          $\r$\n\
-                          $\r$\n\
-                          (press 'Cancel' to specify the path to an already installed node lateron)" IDOK install_node IDCANCEL select_path_node
-      ${Else}
-          MessageBox MB_OKCANCEL "You do not seem to have node.js installed.$\r$\n\
-                          The node.js installer will be downloaded to do the upgrade." IDOK install_node IDCANCEL select_path_node
-      ${EndIf}
-
-      install_node:
-          inetc::get /caption "node.js download" /BANNER "Downloading node.js installer from $\n${node_download_64}" ${node_download_64} "$TEMP\node_latest.msi" /end
-          Pop $1 # pop return value (aka exit code) from stack, "OK" means OK
-          ${If} $1 != "OK"
-            MessageBox MB_OK "Sorry, there was an error downloading node.js$\n\
-                              Aborting the installer,$\n\
-                              please let us know about the circumstances of this error."
-            Quit
-          ${EndIf}
-          ExecWait '"msiexec" /i "$TEMP\node_latest.msi"  /passive'
-          BringToFront # Come back into focus after node installer finished
-          Return
-      select_path_node:
-        StrCpy $show_env_page_node "True"
-        Returnf
-    */
+    !insertmacro CHECK_AND_DOWNLOAD python ${python_download_64} python
+    ###### FUUUCK python does not set the path correctly!!
   FunctionEnd
 
 #--------------------------------
@@ -296,11 +281,11 @@ RequestExecutionLevel user
 #----------
 # 
 Section "Gaming Setup" gamingsection
-  Call get_gamesetup_tools
+ ; Call get_gamesetup_tools
 SectionEnd
 
 Section /o "Developement Setup" devsection
-
+  Call get_devsetup_tools
 SectionEnd
 
 ## The section descriptions
