@@ -71,7 +71,7 @@
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 OutFile "${PRODUCT_NAME}_Setup.exe"
 
-RequestExecutionLevel user
+RequestExecutionLevel admin
 
 #--------------------------------
 # Interface Configuration
@@ -94,7 +94,7 @@ RequestExecutionLevel user
 #--------------------------------
 # Pages
 
-  # Create a page for selecting the path to an existant installation of exename.
+  # Create a page for selecting the path to an existent installation of exename.
   # ID is used to make each macro unique
   !macro CONDITIONAL_ENV_VAR_PAGE EXENAME PATHGUESS ID
 
@@ -138,53 +138,8 @@ RequestExecutionLevel user
   !insertmacro MUI_PAGE_INSTFILES
   !insertmacro CONDITIONAL_ENV_VAR_PAGE "node.exe" "$PROGRAMFILES64\nodejs" node
   !insertmacro CONDITIONAL_ENV_VAR_PAGE "python.exe" "C:\Python27\" python
+  !insertmacro CONDITIONAL_ENV_VAR_PAGE "cmake.exe" "$PROGRAMFILES64\CMake\bin" cmake
   !insertmacro MUI_PAGE_FINISH
-
-# Get required tools macro helper
-
-  # Insert in your get_python/get_nodejs/get_xy functions after setting
-  # has_<ID>
-  # has_<ID>_but_too_old
-  # <ID>_version
-  # <ID>_required_version needs to be defined
-  !macro CHECK_AND_DOWNLOAD EXENAME DOWNLOAD_LINK ID
-    ${If} $has_${ID} != "False"
-      Return # return from the function, not the macro
-    ${EndIf}
-
-      ${If} $has_${ID}_but_too_old == "True"
-          MessageBox MB_OKCANCEL "Your current ${EXENAME}-version is wrong for Inexor: $\r$\n\
-                          $${ID}_version (required version: ${${ID}_required_version})$\r$\n\
-                          The ${EXENAME} installer will be downloaded to do the upgrade.$\r$\n\
-                          $\r$\n\
-                          $\r$\n\
-                          $\r$\n\
-                          (press 'Cancel' to specify the path to an existent ${EXENAME} installation lateron)" IDOK install_${ID} IDCANCEL select_path_${ID}
-      ${Else}
-          MessageBox MB_OKCANCEL "You do not seem to have ${EXENAME} installed.$\r$\n\
-                          The ${EXENAME} installer will be downloaded to install it.\
-                          $\r$\n\
-                          $\r$\n\
-                          $\r$\n\
-                          (press 'Cancel' to specify the path to an existent ${EXENAME} installation lateron)" IDOK install_${ID} IDCANCEL select_path_${ID}
-      ${EndIf}
-
-      install_${ID}:
-          inetc::get /caption "${EXENAME} download" /BANNER "Downloading ${EXENAME} installer from $\n${DOWNLOAD_LINK}" ${DOWNLOAD_LINK} "$TEMP\${ID}_latest.msi" /end
-          Pop $1 # pop return value (aka exit code) from stack, "OK" means OK
-          ${If} $1 != "OK"
-            MessageBox MB_OK "Sorry, there was an error downloading ${EXENAME}$\n\
-                              Aborting the installer,$\n\
-                              please let us know about the circumstances of this error."
-            Quit
-          ${EndIf}
-          ExecWait '"msiexec" /i "$TEMP\${ID}_latest.msi"  /passive'
-          BringToFront # Come back into focus after node installer finished
-          Return
-      select_path_${ID}:
-        StrCpy $show_env_page_${ID} "True"
-        Return
-  !macroend
 
 #--------------------------------
 # Get required tools for a gamer setup
@@ -197,11 +152,7 @@ RequestExecutionLevel user
   Var tmp_value # I prefer this over registers.
   Var node_version
 
-  Function get_gamesetup_tools
-
-    #------------
-    # required: node.js
-
+  Function get_nodejs
     nsExec::ExectoStack 'node -v'
     pop $0 # pop return value from stack into register $0
     pop $1 # pop outpout of the command: e.g. "v6.9.1\r\n" -> notice the useless chars
@@ -221,25 +172,74 @@ RequestExecutionLevel user
       ${EndIf}
     ${EndIf}
 
-    !insertmacro CHECK_AND_DOWNLOAD node.js ${node_download_64} node
+    ${If} $has_node != "False"
+      Return
+    ${EndIf}
+
+      ${If} $has_node_but_too_old == "True"
+          MessageBox MB_OKCANCEL "Your current node.js-version is too old for Inexor: $\r$\n\
+                          $node_version (required version: ${node_required_version})$\r$\n\
+                          The node.js installer will be downloaded to do the upgrade.$\r$\n\
+                          $\r$\n\
+                          $\r$\n\
+                          $\r$\n\
+                          (press 'Cancel' to specify the path to an existent node.js installation lateron)" IDOK install_node IDCANCEL select_path_node
+      ${Else}
+          MessageBox MB_OKCANCEL "You do not seem to have node.js installed.$\r$\n\
+                          The node.js installer will be downloaded to install it.\
+                          $\r$\n\
+                          $\r$\n\
+                          $\r$\n\
+                          (press 'Cancel' to specify the path to an existent node.js installation lateron)" IDOK install_node IDCANCEL select_path_node
+      ${EndIf}
+
+      install_node:
+          inetc::get /caption "node.js download" /BANNER "Downloading node.js installer from $\n${node_download_64}" ${node_download_64} "$TEMP\node_latest.msi" /end
+          Pop $1 # pop return value (aka exit code) from stack, "OK" means OK
+          ${If} $1 != "OK"
+            MessageBox MB_OK "Sorry, there was an error downloading node.js$\n\
+                              Aborting the installer,$\n\
+                              please let us know about the circumstances of this error."
+            Quit
+          ${EndIf}
+          ExecWait '"msiexec" /i "$TEMP\node_latest.msi"  /passive /norestart'
+          BringToFront # Come back into focus after node installer finished
+          Return
+      select_path_node:
+        StrCpy $show_env_page_node "True"
+        Return
   FunctionEnd
   
 #--------------------------------
 # Get required tools for a devlopment setup
 
-  # -----------------
-  # required: python, cmake, git, visual studio
-  # cmake: build_require?
-  # if cmake <= 3.1 deinstall first! Installer tool has changed. Uninstall CMake 3.4 or lower first!
-  # https://cmake.org/files/v3.9/cmake-3.9.1-win64-x64.msi
+# ToDo: git, visual studio
+# Problem: leute sollen nicht git cli verwenden, sondern gui wählen
+# Problem2: VS selbstständig runterladen ist vllt ein bisschen viel? viel: zu groß, zu viel bevormundung
+
+# Loesung 1: gui zum wählen, mit meinung.
+
+# Git is a solution to work on different things in the same folder (called "repository").
+# You have different "branches" and "commit" your changes to files in the "branches".
+# Each branch then has a history of changes of your folder.
+# If you switch from branch A to branch B, your files will change in that folder to reflect the commited state of the other branch.
+#
+# Git gives you numerous tools by hand to partially pick the work from one branch to the other. 
+# E.g. you have one useful commit in the branch A ("fix flackering lights bug"), but the rest is not ready yet, so you can cherry-pick just that one commit ("change").
+# ... or a range of commits ... or you make the history of the branch look as if you made those changes on top of the latest version, not on the first-ever version.
+#
+# And the best thing is: you can connect that folder (aka repository) to remote ones, e.g. one is the "https://GitHub.com/inexorgame/inexor-core" repository
+# where we share our work on InexorCore.
+#
+# Git is a whole world of awesome features. It's a lot to learn but it is worth it.
+
   # git: https://github.com/git-for-windows/git/releases/download/v2.14.1.windows.1/Git-2.14.1-64-bit.exe
   # https://git-scm.com/download/gui/windows
 
-  !define python_required_version "2.7.x"
   !define python_download_64 "https://www.python.org/ftp/python/2.7.13/python-2.7.13.amd64.msi"
 
+  !define python_manual_install_path "C:\Python27"
   Var has_python
-  Var has_python_but_too_old
   Var python_version
 
   Function get_python
@@ -252,7 +252,6 @@ RequestExecutionLevel user
 
     ${If} $1 == "python_"
       StrCpy $has_python "False"
-      StrCpy $has_python_but_too_old "False"
     ${Else}
       # check version is high enough
 
@@ -266,8 +265,116 @@ RequestExecutionLevel user
       ${EndIf}
     ${EndIf}
 
-    !insertmacro CHECK_AND_DOWNLOAD python ${python_download_64} python
-    ###### FUUUCK python does not set the path correctly!!
+    ${If} $has_python != "False"
+    #  Return
+    ${EndIf}
+
+      MessageBox MB_OKCANCEL "You do not seem to have python installed.$\r$\n\
+                    The python installer will be downloaded to install it.$\r$\n\
+                    $\r$\n\
+                    $\r$\n\
+                    $\r$\n\
+                    (press 'Cancel' to specify the path to an existent python installation lateron)" IDOK install_python IDCANCEL select_path_python
+
+      install_python:
+          inetc::get /caption "python download" /BANNER "Downloading python installer from $\n${python_download_64}" ${python_download_64} "$TEMP\python_latest.msi" /end
+          Pop $1 # pop return value (aka exit code) from stack, "OK" means OK
+          ${If} $1 != "OK"
+            MessageBox MB_OK "Sorry, there was an error downloading python$\n\
+                              Aborting the installer,$\n\
+                              please let us know about the circumstances of this error."
+            Quit
+          ${EndIf}
+          # Python has no option to set the path and propagating it without a needed restart. so we manually specify the install dir and set the path with
+          # our tools.
+          # if they fix this, we can skip all this and just pass ADD_LOCAL=ALL to msiexec
+          ExecWait '"msiexec" /i "$TEMP\python_latest.msi" TARGETDIR="${python_manual_install_path}" /norestart /passive'
+          ${EnvVarUpdate} $0 "PATH" "P" "HKCU" "${python_manual_install_path}"
+          ${EnvVarUpdate} $0 "PATH" "P" "HKCU" "${python_manual_install_path}\Scripts"
+          BringToFront # Come back into focus after node installer finished
+          Return
+      select_path_python:
+        StrCpy $show_env_page_python "True"
+        Return
+  FunctionEnd
+## -----------------
+# cmake
+# cmake: could also be handled by conan (as build_require)
+# if cmake <= 3.1 deinstall first! Installer tool has changed. Uninstall CMake 3.4 or lower first!
+
+  !define cmake_required_version "3.10.0"
+  !define cmake_download_64 "https://cmake.org/files/v3.9/cmake-3.9.1-win64-x64.msi"
+
+  Var has_cmake
+  Var has_cmake_but_too_old
+  Var cmake_version
+
+  Function get_cmake
+
+    nsExec::ExectoStack 'cmake --version'
+    pop $R0 # pop return value from stack into register $R0
+    pop $R1 # pop outpout of the command: e.g. "cmake 2.7.1\r\n" -> notice the useless chars
+    # namely the output is "cmake version 3.x.x\nCMake suite maintained and supported by Kitware (kitware.com/cmake).\n"
+    # notice its not using \r\n but only \n as newline
+    StrCpy $1 "cmake_$R0" # $R0 is empty if node -v was not able to execute
+
+    ${If} $1 == "cmake_"
+      StrCpy $has_cmake "False"
+    ${Else}
+      # check version is high enough
+
+      ${StrStrip} "$\n" $R1 $cmake_version
+      ${StrStrip} "cmake version " $cmake_version $cmake_version
+      ${StrStrip} "CMake suite maintained and supported by Kitware (kitware.com/cmake)." $cmake_version $cmake_version
+
+      ${VersionCompare} $cmake_version ${cmake_required_version} $2
+      ${If} $2 == 2 # older than required version
+        StrCpy $has_cmake "False"
+        StrCpy $has_cmake_but_too_old "True"
+      ${EndIf}
+    ${EndIf}
+
+    ${If} $has_cmake != "False"
+      Return
+    ${EndIf}
+
+      ${If} $has_cmake_but_too_old == "True"
+          MessageBox MB_OKCANCEL "Your current CMake-version is too old for Inexor: $\r$\n\
+                          $cmake_version (required version: ${cmake_required_version})$\r$\n\
+                          The CMake installer will be downloaded to do the upgrade.\
+                          $\r$\n\
+                          $\r$\n\
+                          $\r$\n\
+                          (press 'Cancel' to specify the path to an existent CMake installation lateron)" IDOK install_cmake IDCANCEL select_path_cmake
+      ${Else}
+          MessageBox MB_OKCANCEL "You do not seem to have cmake.js installed.$\r$\n\
+                          The cmake.js installer will be downloaded to install it.\
+                          $\r$\n\
+                          $\r$\n\
+                          $\r$\n\
+                          (press 'Cancel' to specify the path to an existent CMake installation lateron)" IDOK install_cmake IDCANCEL select_path_cmake
+      ${EndIf}
+
+      select_path_cmake:
+      install_cmake:
+          inetc::get /caption "CMake download" /BANNER "Downloading CMake installer from $\n${cmake_download_64}" ${cmake_download_64} "$TEMP\cmake_latest.msi" /end
+          Pop $1 # pop return value (aka exit code) from stack, "OK" means OK
+          ${If} $1 != "OK"
+            MessageBox MB_OK "Sorry, there was an error downloading CMake$\n\
+                              Aborting the installer,$\n\
+                              please let us know about the circumstances of this error."
+            Quit
+          ${EndIf}
+          ${If} $has_cmake_but_too_old == "True"
+            DetailPrint "Trying to deinstall already installed CMake"
+            ExecWait 'wmic product where name="CMake" call uninstall'
+          ${EndIf}
+          ExecWait '"msiexec" /i "$TEMP\cmake_latest.msi" ADD_CMAKE_TO_PATH=System /passive /norestart'
+          BringToFront # Come back into focus after node installer finished
+          Return
+      noneop:
+        StrCpy $show_env_page_cmake "True"
+        Return
   FunctionEnd
 
 #--------------------------------
@@ -281,11 +388,69 @@ RequestExecutionLevel user
 #----------
 # 
 Section "Gaming Setup" gamingsection
- ; Call get_gamesetup_tools
+  MessageBox MB_OK "Welcome to the Inexor development Setup.$\n\
+                    we will guide you through the installation of all tools required to get started developing.$\n\
+                    We don't know how new you are to this and will assume you have no of the default tools installed.$\n\
+                    $\n\
+                    So this Setup installs for you:$\n\
+                    $\n\
+                    - Visual Studio Community Edition$\n$\t\
+                           - an Integrated Development Environment (IDE)$\n$\t\
+                           - used to translate C++ source code to machine code$\n\
+                    - git$\n$\t\
+                            - a cooperative versioning system$\n$\t\
+                            - for organizing our source base and development$\n\
+                            - we let you choose an UI for it$\n\
+                    - CMake$\n$\t\
+                            - a metabuild system$\n$\t\
+                            - used for creating our Microsoft Visual Studio projects$\n$\t\
+                              from cross-platform build recipes$\n\
+                    - Conan$\n$\t\
+                            - a package manager$\n$\t\
+                            - you do not want to re-invent technology (but to reuse it)$\n$\t\
+                            - for Conan we need:$\n\
+                    - Python$\n$\t\
+                            - a scripting language (but used only for Conan)$\n\
+                    - Node.js$\n$\t\
+                            - JavaScript + JavaScript package manager$\n$\t\
+                            - and just much more powerful than plain JS$\n\
+                    $\n\
+                    $\n\
+                    You will always be able to skip the installation of a specific tool$\n\
+                    (Or manually point to an existent installation)"
+
+  MessageBox MB_OK "Finally we acquire the Inexor parts for you:$\n\
+                    $\n\
+                    - Get InexorFlex$\n$\t\
+                            - our gamelauncher and updater$\n$\t\
+                            - and actually our complete scripting system$\n$\t\
+                            - written in node.js$\n$\t\
+                            - it is actually a npm (node package manager) package!$\n\
+                    $\n\
+                    - InexorFlex installs the rest$\n$\t\
+                            - the InexorCore binaries$\n$\t\
+                            - essential media files...$\n\
+                    $\n\
+                    - InexorCore git repository gets downloaded$\n$\t\
+                            - InexorCore is the C++ part of Inexor$\n$\t\
+                            - so you can participate in C++ development$\n$\t\
+                    $\n\
+                    - InexorCore gets build$\n$\t\
+                            - the first build is slow as all dependencies must$\n$\t\
+                              be downloaded (and sometimes built) with Conan before$\n$\t\
+                            - afterwards the Visual Studio project gets generated with CMake.$\n$\t\
+                            - afterwards we build the project using Visual Studio$\n\
+                    $\n\
+                    $\n\
+                    Lets Go!"
+
+  ;Call get_gamesetup_tools
+  ;Call get_python
 SectionEnd
 
 Section /o "Developement Setup" devsection
-  Call get_devsetup_tools
+ # Todo: dont make normal section execute nodejs download? or hidden section
+  ;Call get_devsetup_tools
 SectionEnd
 
 ## The section descriptions
