@@ -171,13 +171,28 @@ RequestExecutionLevel admin
     Return
   FunctionEnd
 
-
+  # Install InexorFlex via npm and add the bin folder to the PATH.
   Function install_inexorflex
+    CreateDirectory "$INSTDIR"
     ClearErrors
     ExecWait 'cmd.exe /C cd "$INSTDIR" && npm install @inexorgame/inexor-flex' $0
     ${If} ${Errors}
         MessageBox mb_iconstop "Unable to install inexor-flex via npm. Ask the devs for advice.. (exit code $0)"
+        Quit
     ${EndIf}
+    ${EnvVarUpdate} $0 "PATH" "P" "HKCU" "$INSTDIR\node_modules\.bin\"
+  FunctionEnd
+
+  # Install InexorFlex via npm and add the bin folder to the PATH.
+  Function create_shortcuts
+    ## First we need to install the icon
+
+    # define the output path for this file
+    SetOutPath $INSTDIR
+    # define what to install and place it in the output path
+    File Inexor_Icon_256px.ico
+
+    CreateShortCut "$DESKTOP\Inexor.lnk" "$INSTDIR\node_modules\.bin\inexor-flex.cmd" "" "$INSTDIR\Inexor_Icon_256px.ico" 0
   FunctionEnd
 
 #--------------------------------
@@ -193,7 +208,7 @@ RequestExecutionLevel admin
 Section "Gaming Setup" gamingsection
   # If player setup:
   # install/upgrade node silently
-  # install inexor-flex, add it to PATH
+  # install inexor-flex, add it to the PATH
   # Install inexor.bat, create shortcut on inexor.bat
   # let inexor-flex do the rest on first start: download core, download media-essential/media-additional.
   Call check_nodejs_version
@@ -201,6 +216,7 @@ Section "Gaming Setup" gamingsection
     Call download_and_install_nodejs
   ${EndIf}
   Call install_inexorflex
+  Call create_shortcuts
 SectionEnd
 
 ## The section descriptions
