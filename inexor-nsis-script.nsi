@@ -45,9 +45,6 @@
 # * modify finish page
 # * create dev setup
 
-# * Bundle a start script somewhere
-# * Link the start script to the desktop
-
 # later to maybe do:
 # * tells the firewall Inexor.exe is harmeless (maybe flex would need to do this?)
 # * test with proxy settings
@@ -175,8 +172,12 @@ RequestExecutionLevel admin
   Function install_inexorflex
     CreateDirectory "$INSTDIR"
     ClearErrors
-    ExecWait 'cmd.exe /C cd "$INSTDIR" && npm install @inexorgame/inexor-flex' $0
-    ${If} ${Errors}
+    # We need to reread the PATH in case we needed to reinstall nodejs: the PATH will only alter after a restart.But we got a workaround script.
+    SetOutPath $TEMP
+    File RefreshEnv.cmd
+
+    ExecWait 'cmd.exe /C $TEMP\RefreshEnv && cd "$INSTDIR" && npm install @inexorgame/inexor-flex' $0
+    ${If} $0 != "0"
         MessageBox mb_iconstop "Unable to install inexor-flex via npm. Ask the devs for advice.. (exit code $0)"
         Quit
     ${EndIf}
