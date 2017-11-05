@@ -120,6 +120,11 @@ RequestExecutionLevel admin
   !insertmacro MUI_PAGE_DIRECTORY
 
   !insertmacro MUI_PAGE_INSTFILES
+  !define MUI_FINISHPAGE_TEXT "The Inexor setup completed to install InexorFlex.$\n\
+                               Start InexoFlex to complete the rest of the installation (downloading media files, downloading InexorCore releases..)"
+  !define FLEX_EXE_CMD "$INSTDIR\node_modules\.bin\inexor-flex.cmd"
+  !define MUI_FINISHPAGE_RUN "${FLEX_EXE_CMD}"
+  !define MUI_FINISHPAGE_RUN_TEXT "Start InexorFlex to do the remaining installation."
   !insertmacro MUI_PAGE_FINISH
 
 #--------------------------------
@@ -178,6 +183,7 @@ RequestExecutionLevel admin
 
     ExecWait 'cmd.exe /C $TEMP\RefreshEnv && cd "$INSTDIR" && npm install @inexorgame/inexor-flex' $0
     ${If} $0 != "0"
+        ExecWait 'cmd.exe /K $TEMP\RefreshEnv && cd "$INSTDIR" && npm install @inexorgame/inexor-flex' $0
         MessageBox mb_iconstop "Unable to install inexor-flex via npm. Ask the devs for advice.. (exit code $0)"
         Quit
     ${EndIf}
@@ -193,7 +199,7 @@ RequestExecutionLevel admin
     # define what to install and place it in the output path
     File Inexor_Icon_256px.ico
 
-    CreateShortCut "$DESKTOP\Inexor.lnk" "$INSTDIR\node_modules\.bin\inexor-flex.cmd" "" "$INSTDIR\Inexor_Icon_256px.ico" 0
+    CreateShortCut "$DESKTOP\Inexor.lnk" "${FLEX_EXE_CMD}" "" "$INSTDIR\Inexor_Icon_256px.ico" 0
   FunctionEnd
 
 #--------------------------------
