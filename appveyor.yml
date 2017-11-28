@@ -1,0 +1,31 @@
+
+clone_depth: 1
+clone_folder: C:\inst
+
+environment:
+  nodejs_version: "8.3.0"
+
+# Install scripts. (runs after repo cloning)
+install:
+  # Get the latest stable version of Node.js
+  - ps: Install-Product node $env:nodejs_version
+  - cmd: create_installer.bat
+
+# Don't actually build.
+build: off
+
+artifacts:
+  - path: C:\inst\Inexor_Setup.exe
+
+deploy:
+  - provider: GitHub
+    auth_token:
+      secure: UqknVXv3X6K25njwvOnmCnA4GObNlZNQFO/Rn3BwsJR+mld9yxDc+a0y1M8AVUzQ
+    draft: false
+    prerelease: true
+    # Override files if there are any already.
+    force_update: true
+    on:
+      # only deploy on tag push
+      appveyor_repo_tag: true
+

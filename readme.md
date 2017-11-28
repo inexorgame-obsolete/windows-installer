@@ -1,11 +1,18 @@
 # The windows installer for Inexor
 
-Actually this is not installing any files itself.
-All it does is provide a handy wrapper for other package managers or other installers.
-
 Inexor actually gets installed with the node.js package manager (npm): `npm install -g inexor-flex` is enough to install it.
 However you firstly need node.js installed and in your path (which is not always the case for normal windows users).
-So we install node.js first (or upgrade it, or let the user decide to look for it manually on the PC)
+Furthermore currently node.js needs to be installed in a specific version (see https://github.com/nodegit/nodegit/blob/master/appveyor.yml#L30)
 
-For devs this setup even installs the toolchain needed to build Inexors C++ part (Inexor-core)
+So we ship node.js and inexor-flex.
 
+
+We plan to provide an advanced setup which installs a dev environment as well.
+
+
+### Notes:
+
+To upgrade the shipped node.js you need to:
+
+1. Change the nodejs version in appveyor.yml
+2. **Change the nodejs version in start_inexor_flex.bat**

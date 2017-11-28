@@ -1,6 +1,6 @@
 @echo off
 
-SET "PATH=%~dp0nodejs\node-v8.3.0-win-x64;%PATH%"
+SET "PATH=%~dp0node-v8.3.0-win-x64;%PATH%"
 
 ::SET "INEXOR_CONFIG_PATH=%~dp0..\config"
 SET "INEXOR_MEDIA_PATH=%~dp0..\media"
