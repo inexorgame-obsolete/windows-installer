@@ -107,12 +107,12 @@ RequestExecutionLevel user
   !insertmacro MUI_PAGE_WELCOME
  # !insertmacro MUI_PAGE_COMPONENTS
 
-  !define MUI_PAGE_HEADER_TEXT "Choose InexorFlex location"
-  !define MUI_PAGE_HEADER_SUBTEXT "Adapt the folder the downloader and scripting system get installed into"
+  !define MUI_PAGE_HEADER_TEXT "Choose Inexor install location"
+ # !define MUI_PAGE_HEADER_SUBTEXT "Adapt the folder the downloader and scripting system get installed into"
   !define MUI_DIRECTORYPAGE_TEXT_TOP "$\n$\nATTENTION: Folder should not require higher permission to be written into. $\n\
                                      The My Games folder is our default recommendation."
-  !define MUI_DIRECTORYPAGE_TEXT_DESTINATION "InexorFlex folder:"
-  InstallDir "$DOCUMENTS\My Games\Inexor\flex"
+  !define MUI_DIRECTORYPAGE_TEXT_DESTINATION "Inexor folder:"
+  InstallDir "$DOCUMENTS\My Games\Inexor\"
   !insertmacro MUI_PAGE_DIRECTORY
 
   !insertmacro MUI_PAGE_INSTFILES
@@ -132,7 +132,7 @@ RequestExecutionLevel user
     ## First we need to install the icon
 
     # define the output path for this file
-    SetOutPath $INSTDIR
+    SetOutPath "$INSTDIR"
     # define what to install and place it in the output path
     File Inexor_Icon_256px.ico
 
@@ -155,10 +155,8 @@ Section "Gaming Setup" gamingsection
   # install inexor-flex, add it to the PATH
   # Install inexor.bat, create shortcut on inexor.bat
   # let inexor-flex do the rest on first start: download core, download media-essential/media-additional.
-  SetOutPath "$INSTDIR\flex\nodejs"
-  File /r "node-v8.3.0-win-x64\*"
-  SetOutPath "$INSTDIR\flex\"
-  File /r "node_modules\*"
+  SetOutPath "$INSTDIR"
+  File /r "flex\*"
   File start_inexor_flex.bat
   Call create_shortcuts
 SectionEnd
