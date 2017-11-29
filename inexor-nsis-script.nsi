@@ -72,9 +72,8 @@ Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 OutFile "${PRODUCT_NAME}_Setup.exe"
 
 RequestExecutionLevel user
-!define MUI_FINISHPAGE_NOAUTOCLOSE
-!define MUI_INSTFILESPAGE_NOAUTOCLOSE
 
+SetCompressor /SOLID lzma
 #--------------------------------
 # Interface Configuration
 
@@ -95,7 +94,9 @@ RequestExecutionLevel user
 
 #--------------------------------
 # Pages
- 
+  !define MUI_FINISHPAGE_NOAUTOCLOSE
+  !define MUI_INSTFILESPAGE_NOAUTOCLOSE
+
   !define MUI_WELCOMEPAGE_TITLE "Welcome to the ${PRODUCT_NAME} ${PRODUCT_VERSION} Setup"
   !define MUI_WELCOMEPAGE_TEXT  "Setup will guide you through the installation of ${PRODUCT_NAME} ${PRODUCT_VERSION}.$\n\
                                 $\n\
