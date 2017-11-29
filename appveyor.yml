@@ -28,5 +28,5 @@ deploy:
     force_update: true
     on:
       # only deploy on tag push
-      appveyor_repo_tag: true
+      appveyor_repo_tag: false
 
