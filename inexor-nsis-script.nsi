@@ -108,7 +108,7 @@ SetCompressor /SOLID lzma
   !insertmacro MUI_PAGE_WELCOME
  # !insertmacro MUI_PAGE_COMPONENTS
 
-  !define MUI_PAGE_HEADER_TEXT "Choose Inexor install location"
+#  !define MUI_PAGE_HEADER_TEXT "Choose Inexor install location"
  # !define MUI_PAGE_HEADER_SUBTEXT "Adapt the folder the downloader and scripting system get installed into"
   !define MUI_DIRECTORYPAGE_TEXT_TOP "$\n$\nATTENTION: Folder should not require higher permission to be written into. $\n\
                                      The My Games folder is our default recommendation."
@@ -133,11 +133,11 @@ SetCompressor /SOLID lzma
     ## First we need to install the icon
 
     # define the output path for this file
-    SetOutPath "$INSTDIR"
+    SetOutPath "$INSTDIR\flex"
     # define what to install and place it in the output path
     File Inexor_Icon_256px.ico
 
-    CreateShortCut "$DESKTOP\Inexor.lnk" "${FLEX_EXE_CMD}" "" "$INSTDIR\Inexor_Icon_256px.ico" 0
+    CreateShortCut "$DESKTOP\Inexor.lnk" "${FLEX_EXE_CMD}" "" "$INSTDIR\flex\Inexor_Icon_256px.ico" 0
   FunctionEnd
 
 #--------------------------------
@@ -156,9 +156,16 @@ Section "Gaming Setup" gamingsection
   # install inexor-flex, add it to the PATH
   # Install inexor.bat, create shortcut on inexor.bat
   # let inexor-flex do the rest on first start: download core, download media-essential/media-additional.
-  SetOutPath "$INSTDIR"
-  File /r "flex\*"
+  SetOutPath "$INSTDIR\flex"
+  # File /r "flex\*"
   File start_inexor_flex.bat
+  # Unpack nodejs
+  SetOutPath "$TEMP\inexorinst"
+  File /r "7z\*"
+  File node.zip
+  File flex.7z
+  nsExec::ExectoLog '"$TEMP\inexorinst\x64\7za" x -y "$TEMP\inexorinst\flex.7z" "-o$INSTDIR/flex/"'
+  nsExec::ExectoLog '"$TEMP\inexorinst\x64\7za" x -y "$TEMP\inexorinst\node.zip" "-o$INSTDIR/flex/"'
   Call create_shortcuts
 SectionEnd
 
